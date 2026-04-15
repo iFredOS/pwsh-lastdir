@@ -36,19 +36,20 @@ Restart your terminal. That's it.
 The installer appends a small block to your PowerShell profile (`$PROFILE.CurrentUserAllHosts`) that:
 
 1. **On startup** — if the terminal opened in your home directory (no specific folder was passed), restores the last saved folder.
-2. **On startup** — saves the current directory so "Open in Terminal" sessions are remembered too.
+2. **On startup** — saves the current directory only when the terminal was launched via "Open in Terminal" from Explorer.
 3. **On `cd`** — wraps `Set-Location` to save the path every time you navigate.
 
 The last directory is stored in `~\.pwsh_lastdir`.
 
 ### Background session protection
 
-Some software (GPU drivers, system tools) silently spawns PowerShell sessions in the background. Without protection, these sessions would overwrite your saved directory with a system path.
+Some software (GPU drivers, AI tools, IDEs) spawns PowerShell sessions in the background or in embedded terminals. Without protection, these sessions would overwrite your saved directory.
 
-pwsh-lastdir guards against this in two ways:
+pwsh-lastdir guards against this in three layers:
 
-- **Interactive check** — only saves when running in a real terminal (`$Host.Name -eq 'ConsoleHost'`), ignoring all background/scripted sessions.
-- **Path exclusion** — skips paths under `AppData`, `Temp`, and `Windows` as a second layer of defence.
+- **Interactive check** — only saves when running in a real terminal (`$Host.Name -eq 'ConsoleHost'`), ignoring scripted/background sessions.
+- **Path exclusion** — skips paths under `AppData`, `Temp`, and `Windows`.
+- **Parent process check** — on startup, only saves the directory if the terminal was launched by Explorer (`explorer.exe`). All other apps (LM Studio, VS Code, GPU utilities, etc.) are ignored on startup; user navigation via `cd` is still tracked normally.
 
 ## Updating
 

@@ -28,11 +28,16 @@ if ((Get-Location).Path -eq `$env:USERPROFILE -and (Test-Path `$lastDirFile)) {
     if (Test-Path `$saved) { Microsoft.PowerShell.Management\Set-Location `$saved }
 }
 
-# Record the starting directory — only from interactive terminal sessions, and not system paths
+# Record the starting directory only when opened via "Open in Terminal" from Explorer
 if (`$Host.Name -eq 'ConsoleHost') {
     `$_p = (Get-Location).Path
-    if (-not (`$_lastdirSkip | Where-Object { `$_p -like "`$_*" })) {
-        `$_p | Out-File `$lastDirFile -Encoding utf8
+    if (`$_p -ne `$env:USERPROFILE -and -not (`$_lastdirSkip | Where-Object { `$_p -like "`$_*" })) {
+        try {
+            `$_ppid = (Get-CimInstance Win32_Process -Filter "ProcessId=`$PID" -Property ParentProcessId).ParentProcessId
+            if ((Get-Process -Id `$_ppid -ErrorAction SilentlyContinue).Name -eq 'explorer') {
+                `$_p | Out-File `$lastDirFile -Encoding utf8
+            }
+        } catch {}
     }
 }
 
