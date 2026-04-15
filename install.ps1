@@ -1,0 +1,71 @@
+#Requires -Version 5.1
+<#
+.SYNOPSIS
+    Installs the pwsh-lastdir feature into your PowerShell profile.
+
+.DESCRIPTION
+    Adds code to your PowerShell profile that:
+      - Restores the last visited folder when you open a new terminal normally
+      - Records the starting folder when you use "Open in Terminal" from Explorer
+      - Saves the folder whenever you cd somewhere
+
+.EXAMPLE
+    .\install.ps1
+#>
+
+$marker = "# === pwsh-lastdir ==="
+$profilePath = $PROFILE.CurrentUserAllHosts
+
+$block = @"
+
+$marker
+`$lastDirFile = "`$env:USERPROFILE\.pwsh_lastdir"
+`$_lastdirSkip = @(`$env:LOCALAPPDATA, `$env:APPDATA, `$env:TEMP, `$env:TMP, "C:\Windows")
+
+# Restore on startup only if no specific directory was provided (e.g. not via "Open in Terminal")
+if ((Get-Location).Path -eq `$env:USERPROFILE -and (Test-Path `$lastDirFile)) {
+    `$saved = Get-Content `$lastDirFile
+    if (Test-Path `$saved) { Microsoft.PowerShell.Management\Set-Location `$saved }
+}
+
+# Record the starting directory — only from interactive terminal sessions, and not system paths
+if (`$Host.Name -eq 'ConsoleHost') {
+    `$_p = (Get-Location).Path
+    if (-not (`$_lastdirSkip | Where-Object { `$_p -like "`$_*" })) {
+        `$_p | Out-File `$lastDirFile -Encoding utf8
+    }
+}
+
+# Save whenever you cd somewhere
+function Set-Location {
+    try {
+        Microsoft.PowerShell.Management\Set-Location @args
+        if (`$Host.Name -eq 'ConsoleHost') {
+            `$_p = `$PWD.Path
+            if (-not (`$_lastdirSkip | Where-Object { `$_p -like "`$_*" })) {
+                `$_p | Out-File "`$env:USERPROFILE\.pwsh_lastdir" -Encoding utf8
+            }
+        }
+    } catch {
+        Write-Host "cd: path not found" -ForegroundColor Red
+    }
+}
+# === end pwsh-lastdir ===
+"@
+
+# Create profile file if it doesn't exist
+if (-not (Test-Path $profilePath)) {
+    New-Item -ItemType File -Path $profilePath -Force | Out-Null
+    Write-Host "Created profile at: $profilePath"
+}
+
+$content = Get-Content $profilePath -Raw -ErrorAction SilentlyContinue
+
+if ($content -and $content.Contains($marker)) {
+    Write-Host "pwsh-lastdir is already installed in your profile." -ForegroundColor Yellow
+    exit 0
+}
+
+Add-Content -Path $profilePath -Value $block -Encoding utf8
+Write-Host "Installed successfully into: $profilePath" -ForegroundColor Green
+Write-Host "Restart your terminal for the changes to take effect."
