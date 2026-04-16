@@ -35,7 +35,7 @@ Restart your terminal. That's it.
 
 The installer appends a small block to your PowerShell profile (`$PROFILE.CurrentUserAllHosts`) that:
 
-1. **On startup** — if the terminal opened in your home directory (no specific folder was passed), restores the last saved folder.
+1. **On startup** — if the terminal opened in your home directory or a system path (no specific folder was passed), restores the last saved folder.
 2. **On startup** — saves the current directory only when the terminal was launched via "Open in Terminal" from Explorer.
 3. **On `cd`** — wraps `Set-Location` to save the path every time you navigate.
 
