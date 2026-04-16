@@ -1,5 +1,7 @@
 # pwsh-lastdir
 
+![version](https://img.shields.io/badge/version-1.1-blue) ![platform](https://img.shields.io/badge/platform-Windows-lightgrey) ![powershell](https://img.shields.io/badge/PowerShell-5.1%2B-blue)
+
 Remembers your last visited folder across PowerShell terminal sessions on Windows.
 
 Open a new terminal and you're right back where you left off — no setup, no friction.
