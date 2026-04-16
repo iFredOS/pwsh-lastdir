@@ -22,8 +22,10 @@ $marker
 `$lastDirFile = "`$env:USERPROFILE\.pwsh_lastdir"
 `$_lastdirSkip = @(`$env:LOCALAPPDATA, `$env:APPDATA, `$env:TEMP, `$env:TMP, "C:\Windows")
 
-# Restore on startup only if no specific directory was provided (e.g. not via "Open in Terminal")
-if ((Get-Location).Path -eq `$env:USERPROFILE -and (Test-Path `$lastDirFile)) {
+# Restore on startup unless a meaningful directory was provided (e.g. via "Open in Terminal")
+`$_startPath = (Get-Location).Path
+`$_startUninformative = (`$_startPath -eq `$env:USERPROFILE) -or (`$_lastdirSkip | Where-Object { `$_startPath -like "`$_*" })
+if (`$_startUninformative -and (Test-Path `$lastDirFile)) {
     `$saved = Get-Content `$lastDirFile
     if (Test-Path `$saved) { Microsoft.PowerShell.Management\Set-Location `$saved }
 }
