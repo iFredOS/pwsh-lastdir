@@ -53,11 +53,16 @@ pwsh-lastdir guards against this in three layers:
 
 ## Updating
 
-If you already have pwsh-lastdir installed and want to apply an update, run:
+Just run the installer again:
 
 ```powershell
-.\uninstall.ps1
 .\install.ps1
 ```
 
+It detects the version already in your profile and upgrades the block in place. Re-running when you're already on the current version is a no-op.
+
 Then restart your terminal.
+
+## Backups
+
+`install.ps1` and `uninstall.ps1` write a timestamped backup of your profile to `<profile>.bak-YYYYMMDD-HHMMSS` before modifying it. If something goes wrong, restore by copying the backup back over your profile (the path is printed at the end of each run).

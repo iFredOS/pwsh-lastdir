@@ -1,24 +1,34 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Installs the pwsh-lastdir feature into your PowerShell profile.
+    Installs or updates the pwsh-lastdir feature in your PowerShell profile.
 
 .DESCRIPTION
-    Adds code to your PowerShell profile that:
+    Adds (or refreshes) code in your PowerShell profile that:
       - Restores the last visited folder when you open a new terminal normally
       - Records the starting folder when you use "Open in Terminal" from Explorer
       - Saves the folder whenever you cd somewhere
+
+    Re-running this script upgrades an older install in place. The profile is
+    backed up to "<profile>.bak-YYYYMMDD-HHMMSS" before any modification.
 
 .EXAMPLE
     .\install.ps1
 #>
 
-$marker = "# === pwsh-lastdir ==="
+$script:Version = '1.1'
 $profilePath = $PROFILE.CurrentUserAllHosts
+
+$openMarker = "# === pwsh-lastdir v$Version ==="
+$endMarker = "# === end pwsh-lastdir ==="
+$openPattern = '# === pwsh-lastdir(?: v[\d.]+)? ==='
+$endPattern = '# === end pwsh-lastdir ==='
+$blockPattern = "(?s)\r?\n?$openPattern.*?$endPattern\r?\n?"
+$versionPattern = '# === pwsh-lastdir(?: v([\d.]+))? ==='
 
 $block = @"
 
-$marker
+$openMarker
 `$lastDirFile = "`$env:USERPROFILE\.pwsh_lastdir"
 `$_lastdirSkip = @(`$env:LOCALAPPDATA, `$env:APPDATA, `$env:TEMP, `$env:TMP, "C:\Windows")
 
@@ -57,22 +67,63 @@ function Set-Location {
         Write-Host "cd: path not found" -ForegroundColor Red
     }
 }
-# === end pwsh-lastdir ===
+$endMarker
 "@
 
-# Create profile file if it doesn't exist
-if (-not (Test-Path $profilePath)) {
+# Ensure profile exists
+$profileExisted = Test-Path $profilePath
+if (-not $profileExisted) {
     New-Item -ItemType File -Path $profilePath -Force | Out-Null
     Write-Host "Created profile at: $profilePath"
 }
 
 $content = Get-Content $profilePath -Raw -ErrorAction SilentlyContinue
+if (-not $content) { $content = '' }
 
-if ($content -and $content.Contains($marker)) {
-    Write-Host "pwsh-lastdir is already installed in your profile." -ForegroundColor Yellow
+$hasOpen = $content -match $openPattern
+$hasEnd = $content -match $endPattern
+
+# Abort if the profile contains a half-written block (one marker without its pair).
+# Letting install rewrite here risks eating unrelated user content between markers.
+if ($hasOpen -ne $hasEnd) {
+    Write-Host "Found a partial/malformed pwsh-lastdir block in:" -ForegroundColor Red
+    Write-Host "  $profilePath" -ForegroundColor Red
+    Write-Host "Run .\uninstall.ps1 (it backs up the profile first) or edit the file by hand, then re-run install." -ForegroundColor Yellow
+    exit 1
+}
+
+$installedVersion = $null
+if ($content -match $versionPattern) {
+    $installedVersion = if ($matches[1]) { $matches[1] } else { 'unversioned' }
+}
+
+if ($installedVersion -eq $Version) {
+    Write-Host "pwsh-lastdir v$Version is already installed (no changes)." -ForegroundColor Yellow
     exit 0
 }
 
+$backupPath = $null
+if ($profileExisted -and $content.Length -gt 0) {
+    $ts = Get-Date -Format 'yyyyMMdd-HHmmss'
+    $backupPath = "$profilePath.bak-$ts"
+    Copy-Item -Path $profilePath -Destination $backupPath -ErrorAction Stop
+}
+
+if ($installedVersion) {
+    $content = [regex]::Replace($content, $blockPattern, '')
+    Set-Content -Path $profilePath -Value $content -Encoding utf8 -NoNewline
+}
+
 Add-Content -Path $profilePath -Value $block -Encoding utf8
-Write-Host "Installed successfully into: $profilePath" -ForegroundColor Green
-Write-Host "Restart your terminal for the changes to take effect."
+
+$action = if ($installedVersion -eq 'unversioned') {
+    "Upgraded from unversioned install to v$Version"
+} elseif ($installedVersion) {
+    "Upgraded from v$installedVersion to v$Version"
+} else {
+    "Installed v$Version"
+}
+
+Write-Host "$action -> $profilePath" -ForegroundColor Green
+if ($backupPath) { Write-Host "Backup: $backupPath" }
+Write-Host "Restart your terminal for changes to take effect."
