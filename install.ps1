@@ -16,7 +16,7 @@
     .\install.ps1
 #>
 
-$script:Version = '1.1'
+$script:Version = '1.2'
 $profilePath = $PROFILE.CurrentUserAllHosts
 
 $openMarker = "# === pwsh-lastdir v$Version ==="
@@ -42,12 +42,11 @@ if (`$_startUninformative -and (Test-Path `$lastDirFile)) {
 
 # Record the starting directory only when opened via "Open in Terminal" from Explorer
 if (`$Host.Name -eq 'ConsoleHost') {
-    `$_p = (Get-Location).Path
-    if (`$_p -ne `$env:USERPROFILE -and -not (`$_lastdirSkip | Where-Object { `$_p -like "`$_*" })) {
+    if (`$_startPath -ne `$env:USERPROFILE -and -not (`$_lastdirSkip | Where-Object { `$_startPath -like "`$_*" })) {
         try {
             `$_ppid = (Get-CimInstance Win32_Process -Filter "ProcessId=`$PID" -Property ParentProcessId).ParentProcessId
             if ((Get-Process -Id `$_ppid -ErrorAction SilentlyContinue).Name -eq 'explorer') {
-                `$_p | Out-File `$lastDirFile -Encoding utf8
+                `$_startPath | Out-File `$lastDirFile -Encoding utf8
             }
         } catch {}
     }
