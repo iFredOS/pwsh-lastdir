@@ -1,5 +1,12 @@
 # Changelog
 
+## v1.2 — 2026-04-23
+
+### Fixed
+
+- Startup save no longer re-records the restored directory on every normal taskbar/Start-menu launch. Previously, after a restore (terminal starts at USERPROFILE → moves to the saved dir), the startup save read the post-restore location and wrote it back, creating a permanent loop that `cd`-based saves couldn't break. The startup save now uses the actual startup path (captured before any restore).
+- "Open in Terminal" from Explorer now correctly records the folder on modern Windows 11 + Windows Terminal. The single-hop parent-process check (`parent -eq 'explorer'`) never matched because the launch chain is `pwsh → WindowsTerminal → explorer`. The check now walks up the chain through known terminal hosts (`WindowsTerminal`, `OpenConsole`, `wt`, `conhost`) until it finds `explorer` or a non-terminal launcher (VS Code, IDE, etc.), which stops the walk.
+
 ## v1.1 — 2026-04-16
 
 ### Added
