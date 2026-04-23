@@ -40,13 +40,18 @@ if (`$_startUninformative -and (Test-Path `$lastDirFile)) {
     if (Test-Path `$saved) { Microsoft.PowerShell.Management\Set-Location `$saved }
 }
 
-# Record the starting directory only when opened via "Open in Terminal" from Explorer
+# Record the starting directory only when opened via "Open in Terminal" from Explorer.
+# Walks the parent chain because modern Windows Terminal sits between pwsh and explorer
+# (pwsh -> WindowsTerminal -> explorer), so a single-hop check would miss it.
 if (`$Host.Name -eq 'ConsoleHost') {
     if (`$_startPath -ne `$env:USERPROFILE -and -not (`$_lastdirSkip | Where-Object { `$_startPath -like "`$_*" })) {
         try {
             `$_ppid = (Get-CimInstance Win32_Process -Filter "ProcessId=`$PID" -Property ParentProcessId).ParentProcessId
-            if ((Get-Process -Id `$_ppid -ErrorAction SilentlyContinue).Name -eq 'explorer') {
-                `$_startPath | Out-File `$lastDirFile -Encoding utf8
+            for (`$_i = 0; `$_i -lt 4 -and `$_ppid; `$_i++) {
+                `$_pname = (Get-Process -Id `$_ppid -ErrorAction SilentlyContinue).Name
+                if (`$_pname -eq 'explorer') { `$_startPath | Out-File `$lastDirFile -Encoding utf8; break }
+                if ('WindowsTerminal','OpenConsole','wt','conhost' -notcontains `$_pname) { break }
+                `$_ppid = (Get-CimInstance Win32_Process -Filter "ProcessId=`$_ppid" -Property ParentProcessId -ErrorAction SilentlyContinue).ParentProcessId
             }
         } catch {}
     }
